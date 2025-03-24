@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 
-diretorio = '/media/joao9aulo/dados/Dropbox/Gasto meses/2024'
+diretorio = '/media/joao9aulo/dados/Dropbox/Gasto meses/'
 total_geral = 0.0
 contador_arquivos = 0
 

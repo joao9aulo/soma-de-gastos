@@ -7,74 +7,79 @@ def ordenar_subdiretorios(subdiretorios):
     ordenados = []
     for dir in subdiretorios:
         try:
-            # Tenta converter para inteiro (para ordenação numérica)
             ordenados.append((int(dir), dir))
         except ValueError:
-            # Mantém diretórios não numéricos no final
             ordenados.append((float('inf'), dir))
-    
-    # Ordena primeiro pelos números, depois pelos não numéricos
     ordenados.sort(key=lambda x: x[0])
     return [dir for (_, dir) in ordenados]
 
-diretorio = '/media/joao9aulo/dados/Dropbox/Gasto meses/'
+def gerar_grafico(categoria, diretorio_base=None, cor='green'):
+    """
+    Gera gráfico de evolução de gastos para uma categoria específica
+    
+    Parâmetros:
+    categoria (str): Nome da categoria de gastos a ser filtrada
+    diretorio_base (str): Caminho base dos arquivos (opcional)
+    cor (str): Cor do gráfico (opcional)
+    """
+    if diretorio_base is None:
+        diretorio_base = '/media/joao9aulo/dados/Dropbox/Gasto meses/'
 
-meses = []
-gastos_supermercado = []
+    meses = []
+    gastos = []
 
-# Percorre todos os subdiretórios
-for diretorio_atual, subdiretorios, arquivos in os.walk(diretorio):
-    subdiretorios[:] = ordenar_subdiretorios(subdiretorios)
-    for arquivo in sorted(arquivos):  # Mantém a ordenação
-        if arquivo.endswith(('.ods', '.xlsx')):
-            caminho_completo = os.path.join(diretorio_atual, arquivo)
+    for diretorio_atual, subdiretorios, arquivos in os.walk(diretorio_base):
+        subdiretorios[:] = ordenar_subdiretorios(subdiretorios)
+        for arquivo in sorted(arquivos):
+            if arquivo.endswith(('.ods', '.xlsx')):
+                caminho_completo = os.path.join(diretorio_atual, arquivo)
+                engine = 'odf' if arquivo.endswith('.ods') else 'openpyxl'
+                
+                df = pd.read_excel(caminho_completo, engine=engine, header=None)
+                
+                # Filtra pela categoria (case insensitive)
+                mask = df[0].astype(str).str.strip().str.lower() == categoria.lower()
+                df_filtrado = df.loc[mask].copy()
+                
+                if not df_filtrado.empty:
+                    valores = (
+                        df_filtrado.loc[:, 1]
+                        .astype(str)
+                        .str.replace(r'R\$|\s+', '', regex=True)
+                        .str.replace('.00', '')
+                        .str.replace(',', '.')
+                        .pipe(pd.to_numeric, errors='coerce')
+                    )
+                    df_filtrado.loc[:, 1] = valores
+                    soma = df_filtrado[1].abs().sum()
+                else:
+                    soma = 0
+                
+                mes = os.path.relpath(caminho_completo, start=diretorio_base).replace('.ods', '')
+                meses.append(mes)
+                gastos.append(soma)
 
-             # Determina o engine pelo tipo de arquivo
-            engine = 'odf' if arquivo.endswith('.ods') else 'openpyxl'
-            
-            # Ler arquivo
-            df = pd.read_excel(caminho_completo, engine=engine, header=None)
-            
-            # Filtrar (mantido igual)
-            mask = (
-            (df[0].astype(str).str.strip().str.lower() == "relacionamentos") |
-            (df[0].astype(str).str.strip().str.lower() == "gp"))
-            df_supermercado = df.loc[mask].copy()
-            
-            if not df_supermercado.empty:
-                # Processamento numérico (mantido igual)
-                valores = (
-                    df_supermercado.loc[:, 1]
-                    .astype(str)
-                    .str.replace(r'R\$|\s+', '', regex=True)
-                    .str.replace('.00', '')
-                    .str.replace(',', '.')
-                    .pipe(pd.to_numeric, errors='coerce')
-                )
-                df_supermercado.loc[:, 1] = valores
-                soma = df_supermercado[1].sum()
-            else:
-                soma = 0
-            
-            # Adiciona o caminho relativo para identificar meses
-            mes = os.path.relpath(caminho_completo, start=diretorio).replace('.ods', '')
-            meses.append(mes)
-            gastos_supermercado.append(soma)
+    # Geração do gráfico
+    plt.figure(figsize=(36, 6))
+    plt.plot(meses, gastos, marker='o', linestyle='-', color=cor)
+    plt.title(f'Evolução dos Gastos com {categoria.capitalize()} (2024)')
+    plt.xlabel('Local/Mês')
+    plt.ylabel('Valor Gasto (R$)')
+    plt.xticks(rotation=45, ha='right')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.tight_layout()
 
-# Restante do código mantido igual...
-plt.figure(figsize=(12, 6))
-plt.plot(meses, gastos_supermercado, marker='o', linestyle='-', color='green')
-plt.title('Evolução dos Gastos com Supermercado (2024)')
-plt.xlabel('Local/Mês')
-plt.ylabel('Valor Gasto (R$)')
-plt.xticks(rotation=45, ha='right')
-plt.grid(True, linestyle='--', alpha=0.7)
-plt.tight_layout()
+    # Formatação monetária
+    plt.gca().yaxis.set_major_formatter(
+        plt.FuncFormatter(lambda x, _: f'R$ {x:,.2f}'.replace(',', 'temp').replace('.', ',').replace('temp', '.'))
+    )
 
-# Formatação monetária
-plt.gca().yaxis.set_major_formatter(
-    plt.FuncFormatter(lambda x, _: f'R$ {x:,.2f}'.replace(',', 'temp').replace('.', ',').replace('temp', '.'))
-)
+    nome_arquivo = f'gastos_{categoria.lower().replace(" ", "_")}.png'
+    plt.savefig(nome_arquivo, dpi=300)
+    plt.close()  # Fecha a figura para liberar memória
+    print(f"Gráfico salvo como {nome_arquivo}")
 
-plt.savefig('gastos_supermercado.png', dpi=300)
-print("Gráfico salvo como gastos_supermercado.png")
+# Exemplo de uso:
+gerar_grafico('transporte', cor='blue')
+gerar_grafico('supermercado')
+gerar_grafico('lazer', cor='orange')

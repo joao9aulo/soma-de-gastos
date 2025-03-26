@@ -82,4 +82,3 @@ def gerar_grafico(categoria, diretorio_base=None, cor='green'):
 # Exemplo de uso:
 gerar_grafico('transporte', cor='blue')
 gerar_grafico('supermercado')
-gerar_grafico('lazer', cor='orange')

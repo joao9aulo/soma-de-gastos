@@ -4,6 +4,45 @@ import matplotlib.pyplot as plt
 import os
 from scipy.stats import pearsonr, spearmanr
 
+
+def calcular_correlacoes_com_pvalor(df):
+    """Calcula correlações e p-valores para todos os pares de categorias"""
+    pares = []
+    categorias = df.columns.tolist()
+    
+    for i in range(len(categorias)):
+        for j in range(i+1, len(categorias)):
+            cat1 = categorias[i]
+            cat2 = categorias[j]
+            
+            # Remove NaN para o par atual
+            dados = df[[cat1, cat2]].dropna()
+            
+            if len(dados) < 3:
+                continue  # Mínimo de 3 pontos para correlação
+                
+            try:
+                # Pearson
+                pearson_corr, pearson_p = pearsonr(dados[cat1], dados[cat2])
+                
+                # Spearman
+                spearman_corr, spearman_p = spearmanr(dados[cat1], dados[cat2])
+                
+                pares.append({
+                    'Categoria A': cat1,
+                    'Categoria B': cat2,
+                    'Pearson (r)': pearson_corr,
+                    'Pearson (p)': pearson_p,
+                    'Spearman (ρ)': spearman_corr,
+                    'Spearman (p)': spearman_p,
+                    'Correlação Absoluta': abs(pearson_corr)
+                })
+                
+            except Exception as e:
+                print(f"Erro em {cat1} vs {cat2}: {str(e)}")
+    
+    return pd.DataFrame(pares)
+
 def ordenar_subdiretorios(subdiretorios):
     """Ordena subdiretórios numericamente, ignorando não numéricos"""
     ordenados = []
@@ -102,46 +141,11 @@ for cat in categorias:
 # Criar DataFrame combinado
 df_total = pd.concat(series_dados, axis=1).dropna()
 
-# Calcular matrizes de correlação
-print("\nCalculando correlações...")
-corr_pearson = df_total.corr(method='pearson')
-corr_spearman = df_total.corr(method='spearman')
-
-# Extrair e ordenar pares de correlação
-pares = []
-n_categorias = len(df_total.columns)
-for i in range(n_categorias):
-    for j in range(i+1, n_categorias):
-        cat1 = df_total.columns[i]
-        cat2 = df_total.columns[j]
-        
-        pares.append({
-            'Categoria A': cat1,
-            'Categoria B': cat2,
-            'Pearson': corr_pearson.iloc[i, j],
-            'Spearman': corr_spearman.iloc[i, j],
-            'Correlação Absoluta': abs(corr_pearson.iloc[i, j])
-        })
-
-# Criar e ordenar DataFrame
-df_correlacoes = pd.DataFrame(pares)
+# Calcular correlações com p-valores
+print("\nCalculando correlações e p-valores...")
+df_correlacoes = calcular_correlacoes_com_pvalor(df_total)
 df_ordenado = df_correlacoes.sort_values(by='Correlação Absoluta', ascending=False)
-
-# Exibir resultados
-print("\nTop 10 correlações mais fortes:")
-print(df_ordenado[['Categoria A', 'Categoria B', 'Pearson', 'Spearman']].head(30))
 
 # Opcional: Salvar resultados em CSV
 df_ordenado.to_csv('correlacoes_categorias.csv', index=False)
 print("\nArquivo 'correlacoes_categorias.csv' salvo com todas as correlações!")
-
-# Opcional: Plotar matriz de correlação
-plt.figure(figsize=(12, 8))
-plt.matshow(corr_pearson, fignum=1, cmap='coolwarm')
-plt.xticks(range(len(df_total.columns)), df_total.columns, rotation=90)
-plt.yticks(range(len(df_total.columns)), df_total.columns)
-plt.colorbar()
-plt.title('Matriz de Correlação de Pearson')
-plt.tight_layout()
-plt.savefig('matriz_correlacao.png', dpi=150)
-print("Matriz de correlação salva como 'matriz_correlacao.png'")

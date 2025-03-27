@@ -69,11 +69,26 @@ categorias = [
     ['relacionamentos', 'GP', 'civis'],
     ['transporte','Uber/Táxi','ônibus'],
     ['Rolês/Saídas','Shows/Eventos'],
-    ['aporte'],
+    ##['aporte'],
     ['celular'],
     ['supermercado'],
     ['aluguel'],
-    ['luz']
+    ['luz'],
+    ['Assinaturas','Netflix/Serviços de Streaming/Assinaturas'],
+    ['Saúde'],
+    ['Ifood/Semelhantes','Lanches/Almoço extra'],
+    ['Cinema'],
+    ['Internet'],
+    ['Aparência'],
+    ['Gás'],
+    ['Doações/Presentes'],
+    ['Utilidades'],
+    ['Livros'],
+    ['HQ'],
+    ['Bugigangas'],
+    ['Games']
+
+
 ]
 
 # Coletar dados para todas as categorias
@@ -114,7 +129,7 @@ df_ordenado = df_correlacoes.sort_values(by='Correlação Absoluta', ascending=F
 
 # Exibir resultados
 print("\nTop 10 correlações mais fortes:")
-print(df_ordenado[['Categoria A', 'Categoria B', 'Pearson', 'Spearman']].head(10))
+print(df_ordenado[['Categoria A', 'Categoria B', 'Pearson', 'Spearman']].head(30))
 
 # Opcional: Salvar resultados em CSV
 df_ordenado.to_csv('correlacoes_categorias.csv', index=False)

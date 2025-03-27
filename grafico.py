@@ -80,5 +80,5 @@ def gerar_grafico(categoria, diretorio_base=None, cor='green'):
     print(f"Gráfico salvo como {nome_arquivo}")
 
 # Exemplo de uso:
-gerar_grafico('transporte', cor='blue')
-gerar_grafico('supermercado')
+gerar_grafico('internet', cor='blue')
+gerar_grafico('transporte')

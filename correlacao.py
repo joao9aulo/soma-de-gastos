@@ -16,9 +16,13 @@ def ordenar_subdiretorios(subdiretorios):
     return [dir for (_, dir) in ordenados]
 
 def coletar_dados(categoria, diretorio_base):
-    """Coleta dados para uma categoria específica"""
+    """Coleta dados para uma categoria com múltiplas strings possíveis"""
     meses = []
     gastos = []
+    
+    # Converter para lista se for string único
+    termos = [categoria] if isinstance(categoria, str) else categoria
+    nome_categoria = ', '.join(termos) if isinstance(categoria, list) else categoria
     
     for diretorio_atual, subdiretorios, arquivos in os.walk(diretorio_base):
         subdiretorios[:] = ordenar_subdiretorios(subdiretorios)
@@ -29,7 +33,16 @@ def coletar_dados(categoria, diretorio_base):
                 
                 df = pd.read_excel(caminho_completo, engine=engine, header=None)
                 
-                mask = df[0].astype(str).str.strip().str.lower() == categoria.lower()
+                # Criar máscara para qualquer um dos termos
+                termos_formatados = [str(t).strip().lower() for t in termos]
+                mask = (
+                    df[0]
+                    .astype(str)
+                    .str.strip()
+                    .str.lower()
+                    .isin(termos_formatados)
+                )
+                
                 df_filtrado = df.loc[mask].copy()
                 
                 if not df_filtrado.empty:
@@ -49,11 +62,11 @@ def coletar_dados(categoria, diretorio_base):
                 meses.append(mes)
                 gastos.append(soma)
     
-    return pd.Series(gastos, index=meses, name=categoria)
+    return pd.Series(gastos, index=meses, name=nome_categoria)
 
 def analisar_correlacao(cat1, cat2, diretorio_base):
     """
-    Analisa a correlação entre duas categorias de gastos
+    Analisa a correlação entre duas categorias (podem ser listas de termos)
     Retorna:
     - DataFrame com dados normalizados
     - Coeficientes de correlação
@@ -64,50 +77,55 @@ def analisar_correlacao(cat1, cat2, diretorio_base):
     dados2 = coletar_dados(cat2, diretorio_base)
     
     # Cria DataFrame conjunto
-    df = pd.DataFrame({cat1: dados1, cat2: dados2}).dropna()
+    df = pd.DataFrame({dados1.name: dados1, dados2.name: dados2}).dropna()
     
-    # Normaliza os dados para comparação visual
+    # Normalização
     df_normalizado = (df - df.min()) / (df.max() - df.min())
     
-    # Calcula correlações
-    pearson_r, pearson_p = pearsonr(df[cat1], df[cat2])
-    spearman_r, spearman_p = spearmanr(df[cat1], df[cat2])
+    # Cálculo de correlações
+    pearson_r, pearson_p = pearsonr(df[dados1.name], df[dados2.name])
+    spearman_r, spearman_p = spearmanr(df[dados1.name], df[dados2.name])
     
-    # Cria figura
+    # Plot
     plt.figure(figsize=(15, 10))
     
     # Gráfico 1: Sobreposição temporal
     plt.subplot(2, 1, 1)
-    plt.plot(df_normalizado.index, df_normalizado[cat1], label=cat1, marker='o')
-    plt.plot(df_normalizado.index, df_normalizado[cat2], label=cat2, marker='s')
-    plt.title(f'Comparação Temporal: {cat1} vs {cat2}')
+    plt.plot(df_normalizado.index, df_normalizado[dados1.name], label=dados1.name, marker='o')
+    plt.plot(df_normalizado.index, df_normalizado[dados2.name], label=dados2.name, marker='s')
+    plt.title(f'Comparação Temporal: {dados1.name} vs {dados2.name}')
     plt.xticks(rotation=45)
     plt.legend()
     plt.grid(True)
     
-    # Gráfico 2: Dispersão com linha de tendência
+    # Gráfico 2: Dispersão
     plt.subplot(2, 1, 2)
-    plt.scatter(df[cat1], df[cat2], c='purple', alpha=0.7)
+    plt.scatter(df[dados1.name], df[dados2.name], c='purple', alpha=0.7)
     
     # Linha de tendência
-    z = np.polyfit(df[cat1], df[cat2], 1)
+    z = np.polyfit(df[dados1.name], df[dados2.name], 1)
     p = np.poly1d(z)
-    plt.plot(df[cat1], p(df[cat1]), "r--")
+    plt.plot(df[dados1.name], p(df[dados1.name]), "r--")
     
     plt.title(f'Correlação: Pearson r={pearson_r:.2f} (p={pearson_p:.3f})\nSpearman ρ={spearman_r:.2f} (p={spearman_p:.3f})')
-    plt.xlabel(cat1)
-    plt.ylabel(cat2)
+    plt.xlabel(dados1.name)
+    plt.ylabel(dados2.name)
     plt.grid(True)
     
     plt.tight_layout()
-    plt.savefig(f'correlacao_{cat1}_{cat2}.png', dpi=150)
+    plt.savefig(f'correlacao_{dados1.name}_{dados2.name}.png', dpi=150)
     plt.close()
     
     return df, (pearson_r, pearson_p), (spearman_r, spearman_p)
 
-# Exemplo de uso:
+# Exemplo de uso com múltiplos termos:
 diretorio = '/media/joao9aulo/dados/Dropbox/Gasto meses/'
-dados, pearson, spearman = analisar_correlacao('relacionamentos', 'transporte', diretorio)
+
+# Categorias com múltiplos termos
+relacionamentos = ['relacionamentos', 'GP', 'civis']
+transporte = ['transporte','Uber/Táxi']
+
+dados, pearson, spearman = analisar_correlacao(relacionamentos, transporte, diretorio)
 
 print(f"Correlação de Pearson: {pearson[0]:.2f} (significância: {pearson[1]:.3f})")
 print(f"Correlação de Spearman: {spearman[0]:.2f} (significância: {spearman[1]:.3f})")

@@ -116,3 +116,10 @@ gerar_grafico_dispersao(
     categoria_y={'Rolês': ['Rolês/Saídas','Shows/Eventos','Restaurantes/Bares']},
     cor='green'
 )
+
+# Exemplo de uso:
+gerar_grafico_dispersao(
+    categoria_x={'saúde': ['saúde']},
+    categoria_y={'Transporte': ['transporte']},
+    cor='green'
+)

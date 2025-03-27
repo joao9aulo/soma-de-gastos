@@ -13,20 +13,27 @@ def ordenar_subdiretorios(subdiretorios):
     ordenados.sort(key=lambda x: x[0])
     return [dir for (_, dir) in ordenados]
 
-def gerar_grafico(categoria, diretorio_base=None, cor='green'):
+def gerar_grafico_com_agregacao(categorias_agregadas, diretorio_base=None, cores=None):
     """
-    Gera gráfico de evolução de gastos para uma categoria específica
+    Gera gráfico de evolução de gastos com categorias agregadas
     
     Parâmetros:
-    categoria (str): Nome da categoria de gastos a ser filtrada
+    categorias_agregadas (dict): Dicionário no formato {NomeCategoria: [padrões]}
     diretorio_base (str): Caminho base dos arquivos (opcional)
-    cor (str): Cor do gráfico (opcional)
+    cores (list): Lista de cores para cada categoria (opcional)
     """
     if diretorio_base is None:
         diretorio_base = '/media/joao9aulo/dados/Dropbox/Gasto meses/'
 
+    # Configura cores
+    nomes_categorias = list(categorias_agregadas.keys())
+    if cores is None:
+        cores = plt.rcParams['axes.prop_cycle'].by_key()['color'][:len(nomes_categorias)]
+    elif len(cores) != len(nomes_categorias):
+        raise ValueError("Número de cores deve ser igual ao número de categorias")
+
     meses = []
-    gastos = []
+    gastos_por_categoria = {categoria: [] for categoria in nomes_categorias}
 
     for diretorio_atual, subdiretorios, arquivos in os.walk(diretorio_base):
         subdiretorios[:] = ordenar_subdiretorios(subdiretorios)
@@ -36,37 +43,48 @@ def gerar_grafico(categoria, diretorio_base=None, cor='green'):
                 engine = 'odf' if arquivo.endswith('.ods') else 'openpyxl'
                 
                 df = pd.read_excel(caminho_completo, engine=engine, header=None)
+                df[0] = df[0].astype(str).str.strip().str.lower()  # Normaliza
+
+                # Calcula soma para cada categoria agregada
+                soma_por_categoria = {categoria: 0 for categoria in nomes_categorias}
                 
-                # Filtra pela categoria (case insensitive)
-                mask = df[0].astype(str).str.strip().str.lower() == categoria.lower()
-                df_filtrado = df.loc[mask].copy()
+                for categoria, padroes in categorias_agregadas.items():
+                    # Cria máscara combinando todos os padrões
+                    mask = df[0].isin([p.strip().lower() for p in padroes])
+                    
+                    # Filtra e processa valores
+                    df_filtrado = df.loc[mask].copy()
+                    if not df_filtrado.empty:
+                        valores = (
+                            df_filtrado[1]
+                            .astype(str)
+                            .str.replace(r'R\$|\s+', '', regex=True)
+                            .str.replace('.00', '')
+                            .str.replace(',', '.')
+                            .pipe(pd.to_numeric, errors='coerce')
+                            .abs()
+                        )
+                        soma_por_categoria[categoria] = valores.sum()
                 
-                if not df_filtrado.empty:
-                    valores = (
-                        df_filtrado.loc[:, 1]
-                        .astype(str)
-                        .str.replace(r'R\$|\s+', '', regex=True)
-                        .str.replace('.00', '')
-                        .str.replace(',', '.')
-                        .pipe(pd.to_numeric, errors='coerce')
-                    )
-                    df_filtrado.loc[:, 1] = valores
-                    soma = df_filtrado[1].abs().sum()
-                else:
-                    soma = 0
-                
-                mes = os.path.relpath(caminho_completo, start=diretorio_base).replace('.ods', '')
+                mes = os.path.relpath(caminho_completo, start=diretorio_base)
+                mes = mes.replace('.ods', '').replace('.xlsx', '')
                 meses.append(mes)
-                gastos.append(soma)
+                
+                for categoria in nomes_categorias:
+                    gastos_por_categoria[categoria].append(soma_por_categoria[categoria])
 
     # Geração do gráfico
     plt.figure(figsize=(36, 6))
-    plt.plot(meses, gastos, marker='o', linestyle='-', color=cor)
-    plt.title(f'Evolução dos Gastos com {categoria.capitalize()} (2024)')
+    for categoria, cor in zip(nomes_categorias, cores):
+        plt.plot(meses, gastos_por_categoria[categoria], 
+                marker='o', linestyle='-', color=cor, label=categoria)
+    
+    plt.title('Evolução dos Gastos com Categorias Agregadas (2024)')
     plt.xlabel('Local/Mês')
     plt.ylabel('Valor Gasto (R$)')
     plt.xticks(rotation=45, ha='right')
     plt.grid(True, linestyle='--', alpha=0.7)
+    plt.legend()
     plt.tight_layout()
 
     # Formatação monetária
@@ -74,11 +92,54 @@ def gerar_grafico(categoria, diretorio_base=None, cor='green'):
         plt.FuncFormatter(lambda x, _: f'R$ {x:,.2f}'.replace(',', 'temp').replace('.', ',').replace('temp', '.'))
     )
 
-    nome_arquivo = f'gastos_{categoria.lower().replace(" ", "_")}.png'
+    nome_arquivo = 'gastos_agregados_' + '_'.join(nomes_categorias).lower().replace(' ', '_') + '.png'
     plt.savefig(nome_arquivo, dpi=300)
-    plt.close()  # Fecha a figura para liberar memória
+    plt.close()
     print(f"Gráfico salvo como {nome_arquivo}")
 
 # Exemplo de uso:
-gerar_grafico('internet', cor='blue')
-gerar_grafico('transporte')
+gerar_grafico_com_agregacao(
+    categorias_agregadas={
+        'Assinaturas': [
+            'Assinaturas',
+            'Netflix/Serviços de Streaming/Assinaturas'
+        ]
+    },
+    cores=['purple']
+)
+
+gerar_grafico_com_agregacao(
+    categorias_agregadas={
+        'Rolês': [
+            'Rolês/Saídas', 'Shows/Eventos','Restaurantes/Bares'
+        ]
+    },
+    cores=['purple']
+)
+
+gerar_grafico_com_agregacao(
+    categorias_agregadas={
+        'transporte': [
+            'transporte','Uber/Táxi','ônibus'
+        ]
+    },
+    cores=['purple']
+)
+
+gerar_grafico_com_agregacao(
+    categorias_agregadas={
+        'celular': [
+            'celular'
+        ]
+    },
+    cores=['purple']
+)
+
+gerar_grafico_com_agregacao(
+    categorias_agregadas={
+        'aluguel': [
+            'aluguel'
+        ]
+    },
+    cores=['purple']
+)

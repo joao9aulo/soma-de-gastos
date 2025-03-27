@@ -68,7 +68,7 @@ diretorio = '/media/joao9aulo/dados/Dropbox/Gasto meses/'
 categorias = [
     ['relacionamentos', 'GP', 'civis'],
     ['transporte','Uber/Táxi','ônibus'],
-    ['Rolês/Saídas','Shows/Eventos'],
+    ['Rolês/Saídas','Shows/Eventos','Restaurantes/Bares'],
     ##['aporte'],
     ['celular'],
     ['supermercado'],

@@ -20,7 +20,6 @@ def coletar_dados(categoria, diretorio_base):
     meses = []
     gastos = []
     
-    # Converter para lista se for string único
     termos = [categoria] if isinstance(categoria, str) else categoria
     nome_categoria = ', '.join(termos) if isinstance(categoria, list) else categoria
     
@@ -33,7 +32,6 @@ def coletar_dados(categoria, diretorio_base):
                 
                 df = pd.read_excel(caminho_completo, engine=engine, header=None)
                 
-                # Criar máscara para qualquer um dos termos
                 termos_formatados = [str(t).strip().lower() for t in termos]
                 mask = (
                     df[0]
@@ -52,8 +50,7 @@ def coletar_dados(categoria, diretorio_base):
                         .str.replace(r'R\$|\s+', '', regex=True)
                         .str.replace('.00', '')
                         .str.replace(',', '.')
-                        .pipe(pd.to_numeric, errors='coerce')
-                    )
+                        .pipe(pd.to_numeric, errors='coerce'))
                     soma = valores.abs().sum()
                 else:
                     soma = 0
@@ -64,76 +61,72 @@ def coletar_dados(categoria, diretorio_base):
     
     return pd.Series(gastos, index=meses, name=nome_categoria)
 
-def analisar_correlacao(cat1, cat2, diretorio_base):
-    """
-    Analisa a correlação entre duas categorias (podem ser listas de termos)
-    Retorna:
-    - DataFrame com dados normalizados
-    - Coeficientes de correlação
-    - Gráficos comparativos
-    """
-    # Coleta dados
-    dados1 = coletar_dados(cat1, diretorio_base)
-    dados2 = coletar_dados(cat2, diretorio_base)
-    
-    # Cria DataFrame conjunto
-    df = pd.DataFrame({dados1.name: dados1, dados2.name: dados2}).dropna()
-    
-    # Normalização
-    df_normalizado = (df - df.min()) / (df.max() - df.min())
-    
-    # Cálculo de correlações
-    pearson_r, pearson_p = pearsonr(df[dados1.name], df[dados2.name])
-    spearman_r, spearman_p = spearmanr(df[dados1.name], df[dados2.name])
-    
-    # Plot
-    plt.figure(figsize=(15, 10))
-    
-    # Gráfico 1: Sobreposição temporal
-    plt.subplot(2, 1, 1)
-    plt.plot(df_normalizado.index, df_normalizado[dados1.name], label=dados1.name, marker='o')
-    plt.plot(df_normalizado.index, df_normalizado[dados2.name], label=dados2.name, marker='s')
-    plt.title(f'Comparação Temporal: {dados1.name} vs {dados2.name}')
-    plt.xticks(rotation=45)
-    plt.legend()
-    plt.grid(True)
-    
-    # Gráfico 2: Dispersão
-    plt.subplot(2, 1, 2)
-    plt.scatter(df[dados1.name], df[dados2.name], c='purple', alpha=0.7)
-    
-    # Linha de tendência
-    z = np.polyfit(df[dados1.name], df[dados2.name], 1)
-    p = np.poly1d(z)
-    plt.plot(df[dados1.name], p(df[dados1.name]), "r--")
-    
-    plt.title(f'Correlação: Pearson r={pearson_r:.2f} (p={pearson_p:.3f})\nSpearman ρ={spearman_r:.2f} (p={spearman_p:.3f})')
-    plt.xlabel(dados1.name)
-    plt.ylabel(dados2.name)
-    plt.grid(True)
-    
-    # Substituir barras por hífens no nome do arquivo
-    nome_arquivo = f'correlacao_{dados1.name.replace("/", "-")}_{dados2.name.replace("/", "-")}'
-    plt.savefig(f'{nome_arquivo}.png', dpi=150)
-    
-    plt.close()
-    
-    return df, (pearson_r, pearson_p), (spearman_r, spearman_p)
-
-# Exemplo de uso com múltiplos termos:
+# Configurações iniciais
 diretorio = '/media/joao9aulo/dados/Dropbox/Gasto meses/'
 
-# Categorias com múltiplos termos
-relacionamentos = ['relacionamentos', 'GP', 'civis']
-transporte = ['transporte','Uber/Táxi','ônibus']
-roles = ['Rolês/Saídas','Shows/Eventos']
-aporte = ['aporte']
-celular = ['celular']
-supermercado = ['supermercado']
-aluguel = ['aluguel']
-luz = ['luz']
+# Definir todas as categorias para análise
+categorias = [
+    ['relacionamentos', 'GP', 'civis'],
+    ['transporte','Uber/Táxi','ônibus'],
+    ['Rolês/Saídas','Shows/Eventos'],
+    ['aporte'],
+    ['celular'],
+    ['supermercado'],
+    ['aluguel'],
+    ['luz']
+]
 
-dados, pearson, spearman = analisar_correlacao(transporte, roles, diretorio)
+# Coletar dados para todas as categorias
+print("Coletando dados de todas as categorias...")
+series_dados = []
+for cat in categorias:
+    serie = coletar_dados(cat, diretorio)
+    series_dados.append(serie)
+    print(f"Dados coletados para: {serie.name}")
 
-print(f"Correlação de Pearson: {pearson[0]:.2f} (significância: {pearson[1]:.3f})")
-print(f"Correlação de Spearman: {spearman[0]:.2f} (significância: {spearman[1]:.3f})")
+# Criar DataFrame combinado
+df_total = pd.concat(series_dados, axis=1).dropna()
+
+# Calcular matrizes de correlação
+print("\nCalculando correlações...")
+corr_pearson = df_total.corr(method='pearson')
+corr_spearman = df_total.corr(method='spearman')
+
+# Extrair e ordenar pares de correlação
+pares = []
+n_categorias = len(df_total.columns)
+for i in range(n_categorias):
+    for j in range(i+1, n_categorias):
+        cat1 = df_total.columns[i]
+        cat2 = df_total.columns[j]
+        
+        pares.append({
+            'Categoria A': cat1,
+            'Categoria B': cat2,
+            'Pearson': corr_pearson.iloc[i, j],
+            'Spearman': corr_spearman.iloc[i, j],
+            'Correlação Absoluta': abs(corr_pearson.iloc[i, j])
+        })
+
+# Criar e ordenar DataFrame
+df_correlacoes = pd.DataFrame(pares)
+df_ordenado = df_correlacoes.sort_values(by='Correlação Absoluta', ascending=False)
+
+# Exibir resultados
+print("\nTop 10 correlações mais fortes:")
+print(df_ordenado[['Categoria A', 'Categoria B', 'Pearson', 'Spearman']].head(10))
+
+# Opcional: Salvar resultados em CSV
+df_ordenado.to_csv('correlacoes_categorias.csv', index=False)
+print("\nArquivo 'correlacoes_categorias.csv' salvo com todas as correlações!")
+
+# Opcional: Plotar matriz de correlação
+plt.figure(figsize=(12, 8))
+plt.matshow(corr_pearson, fignum=1, cmap='coolwarm')
+plt.xticks(range(len(df_total.columns)), df_total.columns, rotation=90)
+plt.yticks(range(len(df_total.columns)), df_total.columns)
+plt.colorbar()
+plt.title('Matriz de Correlação de Pearson')
+plt.tight_layout()
+plt.savefig('matriz_correlacao.png', dpi=150)
+print("Matriz de correlação salva como 'matriz_correlacao.png'")

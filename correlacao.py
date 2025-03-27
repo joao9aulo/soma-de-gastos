@@ -112,8 +112,10 @@ def analisar_correlacao(cat1, cat2, diretorio_base):
     plt.ylabel(dados2.name)
     plt.grid(True)
     
-    plt.tight_layout()
-    plt.savefig(f'correlacao_{dados1.name}_{dados2.name}.png', dpi=150)
+    # Substituir barras por hífens no nome do arquivo
+    nome_arquivo = f'correlacao_{dados1.name.replace("/", "-")}_{dados2.name.replace("/", "-")}'
+    plt.savefig(f'{nome_arquivo}.png', dpi=150)
+    
     plt.close()
     
     return df, (pearson_r, pearson_p), (spearman_r, spearman_p)
@@ -123,9 +125,15 @@ diretorio = '/media/joao9aulo/dados/Dropbox/Gasto meses/'
 
 # Categorias com múltiplos termos
 relacionamentos = ['relacionamentos', 'GP', 'civis']
-transporte = ['transporte','Uber/Táxi']
+transporte = ['transporte','Uber/Táxi','ônibus']
+roles = ['Rolês/Saídas','Shows/Eventos']
+aporte = ['aporte']
+celular = ['celular']
+supermercado = ['supermercado']
+aluguel = ['aluguel']
+luz = ['luz']
 
-dados, pearson, spearman = analisar_correlacao(relacionamentos, transporte, diretorio)
+dados, pearson, spearman = analisar_correlacao(transporte, roles, diretorio)
 
 print(f"Correlação de Pearson: {pearson[0]:.2f} (significância: {pearson[1]:.3f})")
 print(f"Correlação de Spearman: {spearman[0]:.2f} (significância: {spearman[1]:.3f})")

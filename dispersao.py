@@ -1,61 +1,7 @@
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
-
-def ordenar_subdiretorios(subdiretorios):
-    """Ordena subdiretórios numericamente, ignorando não numéricos"""
-    ordenados = []
-    for dir in subdiretorios:
-        try:
-            ordenados.append((int(dir), dir))
-        except ValueError:
-            ordenados.append((float('inf'), dir))
-    ordenados.sort(key=lambda x: x[0])
-    return [dir for (_, dir) in ordenados]
-
-def coletar_dados_agregados(categorias_agregadas, diretorio_base):
-    """Coleta dados agregados para múltiplas categorias"""
-    dados = {categoria: [] for categoria in categorias_agregadas.keys()}
-    meses = []
-    
-    for diretorio_atual, subdiretorios, arquivos in os.walk(diretorio_base):
-        subdiretorios[:] = ordenar_subdiretorios(subdiretorios)
-        for arquivo in sorted(arquivos):
-            if arquivo.endswith(('.ods', '.xlsx')):
-                caminho_completo = os.path.join(diretorio_atual, arquivo)
-                engine = 'odf' if arquivo.endswith('.ods') else 'openpyxl'
-                
-                df = pd.read_excel(caminho_completo, engine=engine, header=None)
-                df[0] = df[0].astype(str).str.strip().str.lower()
-                
-                # Coleta soma para cada categoria
-                soma_por_categoria = {}
-                for categoria, padroes in categorias_agregadas.items():
-                    mask = df[0].isin([p.strip().lower() for p in padroes])
-                    df_filtrado = df.loc[mask].copy()
-                    if not df_filtrado.empty:
-                        valores = (
-                            df_filtrado[1]
-                            .astype(str)
-                            .str.replace(r'R\$|\s+', '', regex=True)
-                            .str.replace('.00', '')
-                            .str.replace(',', '.')
-                            .pipe(pd.to_numeric, errors='coerce')
-                            .abs()
-                        )
-                        soma_por_categoria[categoria] = valores.sum()
-                    else:
-                        soma_por_categoria[categoria] = 0
-                
-                # Adiciona aos dados
-                for categoria in categorias_agregadas.keys():
-                    dados[categoria].append(soma_por_categoria.get(categoria, 0))
-                
-                mes = os.path.relpath(caminho_completo, start=diretorio_base)
-                mes = mes.replace('.ods', '').replace('.xlsx', '')
-                meses.append(mes)
-    
-    return dados, meses
+from dataExtractor import get_combined_data
 
 def gerar_grafico_com_agregacao(categorias_agregadas, diretorio_base=None, cores=None):
     """Gera gráfico de linha ou dispersão para uma categoria (como antes)"""
@@ -75,8 +21,8 @@ def gerar_grafico_dispersao(categoria_x, categoria_y, diretorio_base=None, cor='
         diretorio_base = '/media/joao9aulo/dados/Dropbox/Gasto meses/'
     
     # Coleta dados para ambas as categorias
-    dados_x, meses = coletar_dados_agregados(categoria_x, diretorio_base)
-    dados_y, _ = coletar_dados_agregados(categoria_y, diretorio_base)
+    dados_x, meses = get_combined_data()
+    dados_y, _ = get_combined_data()
     
     nome_x = list(categoria_x.keys())[0]
     nome_y = list(categoria_y.keys())[0]

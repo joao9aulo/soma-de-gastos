@@ -1,6 +1,33 @@
 import pandas as pd
 import os
 
+# Configurações iniciais
+diretorio = '/media/joao9aulo/dados/Dropbox/Gasto meses/'
+
+# Definir todas as categorias para análise
+categorias = [
+    ['relacionamentos', 'GP', 'civis'],
+    ['transporte','Uber/Táxi','ônibus'],
+    ['Rolês/Saídas','Shows/Eventos','Restaurantes/Bares'],
+    ##['aporte'],
+    ['celular'],
+    ['supermercado'],
+    ['aluguel'],
+    ['luz'],
+    ['Assinaturas','Netflix/Serviços de Streaming/Assinaturas'],
+    ['Saúde'],
+    ['Ifood/Semelhantes','Lanches/Almoço extra'],
+    ['Cinema'],
+    ['Internet'],
+    ['Aparência'],
+    ['Gás'],
+    ['Doações/Presentes'],
+    ['Utilidades'],
+    ['Livros'],
+    ['HQ'],
+    ['Bugigangas'],
+    ['Games']]
+
 def ordenar_subdiretorios(subdiretorios):
     """Ordena subdiretórios numericamente, ignorando não numéricos"""
     ordenados = []
@@ -35,7 +62,8 @@ def coletar_dados(categoria, diretorio_base):
                     .astype(str)
                     .str.strip()
                     .str.lower()
-                    .isin(termos_formatados))
+                    .isin(termos_formatados)
+                )
                 
                 df_filtrado = df.loc[mask].copy()
                 
@@ -57,10 +85,23 @@ def coletar_dados(categoria, diretorio_base):
     
     return pd.Series(gastos, index=meses, name=nome_categoria)
 
-def get_combined_data(diretorio_base, categorias):
-    """Retorna um DataFrame combinado com todos os dados coletados"""
+def get_combined_data():
+    # Coletar dados para todas as categorias
+    print("Coletando dados de todas as categorias...")
     series_dados = []
     for cat in categorias:
-        serie = coletar_dados(cat, diretorio_base)
+        serie = coletar_dados(cat, diretorio)
         series_dados.append(serie)
-    return pd.concat(series_dados, axis=1).dropna()
+        print(f"Dados coletados para: {serie.name}")
+
+    # Criar DataFrame combinado
+    df_total = pd.concat(series_dados, axis=1).dropna()
+
+    # Remover outliers das categorias específicas
+    categoria_saude = 'Saúde'
+    categoria_assinaturas = 'Assinaturas, Netflix/Serviços de Streaming/Assinaturas'
+
+    # Filtra valores <= 1500 para Saúde e Assinaturas
+    df_total[categoria_saude] = df_total[categoria_saude].where(df_total[categoria_saude] <= 1500)
+    df_total[categoria_assinaturas] = df_total[categoria_assinaturas].where(df_total[categoria_assinaturas] <= 1500)
+    return df_total

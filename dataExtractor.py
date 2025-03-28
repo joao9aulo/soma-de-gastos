@@ -104,9 +104,5 @@ def get_combined_data():
     # Filtra valores <= 1500 para Saúde e Assinaturas
     df_total[categoria_saude] = df_total[categoria_saude].where(df_total[categoria_saude] <= 1500)
     df_total[categoria_assinaturas] = df_total[categoria_assinaturas].where(df_total[categoria_assinaturas] <= 1500)
-    meses = []
-    mes = os.path.relpath(caminho_completo, start=diretorio_base)
-    mes = mes.replace('.ods', '').replace('.xlsx', '')
-    meses.append(mes)
 
-    return df_total, meses
+    return df_total

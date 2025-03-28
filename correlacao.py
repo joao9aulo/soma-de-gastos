@@ -141,6 +141,14 @@ for cat in categorias:
 # Criar DataFrame combinado
 df_total = pd.concat(series_dados, axis=1).dropna()
 
+# Remover outliers das categorias específicas
+categoria_saude = 'Saúde'
+categoria_assinaturas = 'Assinaturas, Netflix/Serviços de Streaming/Assinaturas'
+
+# Filtra valores <= 1500 para Saúde e Assinaturas
+df_total[categoria_saude] = df_total[categoria_saude].where(df_total[categoria_saude] <= 1500)
+df_total[categoria_assinaturas] = df_total[categoria_assinaturas].where(df_total[categoria_assinaturas] <= 1500)
+
 # Calcular correlações com p-valores
 print("\nCalculando correlações e p-valores...")
 df_correlacoes = calcular_correlacoes_com_pvalor(df_total)
